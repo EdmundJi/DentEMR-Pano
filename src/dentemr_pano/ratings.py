@@ -143,7 +143,7 @@ def pooled_item_matrix(
 
     Each ``(case, item)`` pair becomes a row, so a chance-corrected coefficient
     for a dimension is computed on the native 0/1/2 item scale rather than on
-    the dimension total. Applying quadratic weights to a 47-point composite
+    the dimension total. Applying quadratic weights to the 46-point composite
     total would treat almost every pair of scores as near-agreement and drive
     the coefficient to 1 regardless of the data; pooling avoids that.
 

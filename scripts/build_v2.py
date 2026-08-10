@@ -11,7 +11,7 @@ inputs named on the command line, and enumerated in the CHANGELOG.md the
 script writes. Nothing is silently corrected: the counts printed at the end
 are the counts that go into the changelog.
 
-Changes applied (see plan/FINDINGS for provenance):
+Changes applied (provenance documented in the release CHANGELOG):
   1. ICD-10 normalisation: case, letter-O-for-zero, full-width separators.
   2. treatment_category: 124 combination strings -> controlled vocabulary.
   3. Three records with residual exact dates / pasted haematology values.
@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import re
 import sys
@@ -50,18 +51,19 @@ from dentemr_pano.translate import TRANSLATABLE_FIELDS  # noqa: E402
 #: Per-record replacements in `imaging_examination`. Residual exact dates are
 #: reduced to YYYY-MM; haematology results pasted into an imaging field are
 #: removed (they are lab results, not imaging findings, and two carry exact
-#: dates).
+#: dates). The pre-clean source strings are stored as SHA-256 digests, not
+#: verbatim: publishing the removed identifiers would undo the removal.
 IMAGING_FIXES: dict[str, tuple[str, str]] = {
     "0000448185": (
-        "曲面断层片示拔牙创末见其他异常。:2025-08-27全血细胞计数+五分类红细胞压积 0.507L/L",
+        "8edc557615cb5f6321e3ff6e641bd62b58744dee056dbc35804f4745ace6cf18",
         "曲面断层片示拔牙创末见其他异常。",
     ),
     "0000866026": (
-        "2022-3-28牙片示：27根管内有阻射影。根尖周暗影",
+        "ce2f580cac2babc34e20c6b223f3282aee48a3d1588cde0536e34030018bbbdd",
         "2022-03牙片示：27根管内有阻射影。根尖周暗影",
     ),
     "0001232553": (
-        "x线全景片示:牙周病，遗留多数牙根，残冠、38、48理伏阳生齿未萌2025-08-02全血细胞计数+五分类平均血红蛋白量 26.9pg",
+        "da3819953f33136a548bb359caf4f265b45d260602145a512a9c32543262897b",
         "x线全景片示:牙周病，遗留多数牙根，残冠、38、48理伏阳生齿未萌",
     ),
 }
@@ -254,8 +256,9 @@ def build_records(v1: Path, tdir: Path, stats: Counter,
     for rec in records:
         pid = rec["patient_id"]
         if pid in IMAGING_FIXES:
-            old, new = IMAGING_FIXES[pid]
-            assert rec["imaging_examination"] == old, pid
+            old_sha, new = IMAGING_FIXES[pid]
+            got = hashlib.sha256(rec["imaging_examination"].encode()).hexdigest()
+            assert got == old_sha, pid
             rec["imaging_examination"] = new
             stats["imaging_examination repaired"] += 1
 
@@ -404,7 +407,7 @@ def main() -> int:
     ap.add_argument("--skip-images", action="store_true")
     ap.add_argument("--extra-corrections", type=Path, default=None,
                     help="JSON of {masked_segment: final_english} applied on "
-                         "top of the reviewer corrections (v3 screening pass)")
+                         "top of the reviewer corrections (screening pass)")
     args = ap.parse_args()
 
     stats: Counter = Counter()

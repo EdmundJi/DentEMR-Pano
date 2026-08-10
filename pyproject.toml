@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dentemr-pano"
 version = "2.0.0"
-description = "Construction, validation and reliability analysis code for the DentEMR-Pano dental clinical dataset"
+description = "Validation, cohort statistics, reliability and translation-check code for the DentEMR-Pano dataset"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"

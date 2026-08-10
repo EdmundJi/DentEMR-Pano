@@ -47,7 +47,7 @@ Specifically:
 | Field segmentation and structured extraction | manual, per the Methods protocol; no pipeline existed to publish |
 | Schema definition | reimplemented (`schema.py`) |
 | Dataset validation and QC | newly written (`validate.py`) |
-| Image de-identification masking and release packaging | encoded in the release-assembly script (`scripts/build_v2.py`) |
+| Image de-identification masking and release packaging | encoded in the release-assembly scripts (`scripts/build_v2.py`, `scripts/split_language_copies.py`) |
 | English translation pipeline and checks | included (`translate.py`, `segments.py`, `scripts/run_translation_pipeline.py`) |
 | Cohort statistics and figures | reimplemented (`cohort.py`, `figures.py`) |
 | Inter-rater reliability | reimplemented (`reliability.py`, `ratings.py`) |

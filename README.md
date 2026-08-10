@@ -102,8 +102,8 @@ that regime and one is degenerate outright, so a chance-corrected coefficient is
 reported alongside throughout.
 
 The chance-corrected coefficients for a dimension are computed on its **pooled
-item scores**, not on the dimension total. Applying quadratic weights to a
-47-point composite would treat almost every pair of scores as near-agreement and
+item scores**, not on the dimension total. Applying quadratic weights to the
+46-point composite would treat almost every pair of scores as near-agreement and
 drive the coefficient toward 1 regardless of the data.
 
 ## Tests
@@ -130,6 +130,8 @@ src/dentemr_pano/
 ├── ratings.py      rater score loading and reshaping
 ├── cohort.py       demographics, disease spectrum, hypothesis tests
 ├── figures.py      the dataset-characteristics figures
+├── segments.py     segmentation and protected-token masking
+├── pipeline.py     translation pipeline checks (tooth numbers, negation)
 └── translate.py    zh->en translation of the clinical text fields
 scripts/            command-line drivers
 tests/              correctness tests against published reference values

@@ -1,10 +1,10 @@
 """Canonical schema for the DentEMR-Pano clinical records.
 
-This module is the single source of truth for the released record structure.
-The manuscript's schema table is generated from :data:`FIELDS` (see
-``scripts/make_schema_table.py``) so the paper and the data cannot drift apart
-again -- the v1 release and the submitted Table 4 disagreed on five field names
-and on two fields that were described but never shipped.
+This module is the single source of truth for the released record structure:
+the manuscript's schema table lists exactly the fields in :data:`FIELDS`, so
+the paper and the data cannot drift apart again -- the v1 release and the
+originally submitted schema table disagreed on five field names and on two
+fields that were described but never shipped.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ FIELDS: tuple[Field, ...] = (
           "Anonymised contributing physician code, P1-P5."),
     Field("chief_complaint", "【主诉】", "string", "expected", "zh",
           "Presenting symptom and duration in the patient's own words."),
-    Field("chief_complaint_en", "derived", "enum", "expected", "en",
+    Field("chief_complaint_category", "derived", "enum", "expected", "en",
           "Coarse English category of the chief complaint; not a translation."),
     Field("history_of_present_illness", "【现病史】", "string", "expected", "zh",
           "Onset, triggers and progression narrative."),

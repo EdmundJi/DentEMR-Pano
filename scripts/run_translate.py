@@ -37,8 +37,9 @@ from dentemr_pano.translate import (  # noqa: E402
 )
 
 # The published v1 archive already has a `chief_complaint_en` holding a
-# 13-value category, not a translation. It is renamed here so that `_en` means
-# "English translation of the adjacent field" consistently across the schema.
+# coarse category label, not a translation. It is renamed here so that `_en`
+# means "English translation of the adjacent field" consistently across the
+# schema.
 CATEGORY_RENAME = ("chief_complaint_en", "chief_complaint_category")
 
 

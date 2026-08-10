@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate every cohort statistic, table and figure from the release.
 
-    python code/scripts/run_cohort.py dataset/dental_clinical_dataset_v1 \
+    python code/scripts/run_cohort.py dataset/dental_clinical_dataset_v2_zh \
         --outdir analysis/out
 
 Writes the three dataset-characteristics figures as PDF and PNG, the counts

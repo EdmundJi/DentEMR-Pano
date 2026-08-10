@@ -9,7 +9,7 @@ means the manuscript reports, purely so the analysis pipeline can be exercised
 end to end before the real scores are transcribed. Anything it produces is
 labelled as synthetic and must never reach the paper.
 
-    python code/scripts/make_ratings_template.py --dataset dataset/dental_clinical_dataset_v1
+    python code/scripts/make_ratings_template.py --dataset dataset/dental_clinical_dataset_v2_zh
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ RATERS = ("R1", "R2", "R3")
 SAMPLE_PER_PHYSICIAN = {"P1": 64, "P2": 36, "P3": 20, "P4": 20, "P5": 20}
 
 #: Per-item probability of the maximum score, tuned so that the synthetic
-#: dimension means land close to the reported 98.1 / 93.3 / 98.0 / 83.4 / 100.
+#: dimension means land close to the reported 98.4 / 93.3 / 98.0 / 83.4 / 100.
 _SYNTHETIC_P_MAX = {
     "Dim1": 0.95, "Dim2": 0.90, "Dim3": 0.96, "Dim4": 0.55, "Dim5": 1.00,
 }

@@ -6,7 +6,7 @@ never disagree with the shipped archive.
 
 Usage::
 
-    python -m dentemr_pano.validate path/to/dental_clinical_dataset_v1 \
+    python -m dentemr_pano.validate path/to/dental_clinical_dataset_v2_zh \
         --json analysis/out/audit.json
 """
 
