@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dentemr-pano"
+version = "2.0.0"
+description = "Construction, validation and reliability analysis code for the DentEMR-Pano dental clinical dataset"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+keywords = ["dental", "clinical-nlp", "inter-rater-reliability", "data-descriptor"]
+
+authors = [
+    { name = "Yude Ji" },
+    { name = "Yukun Du" },
+    { name = "Rui Zhang", email = "zr794121@shzu.edu.cn" },
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dicom = ["pydicom>=2.4"]
+dev = ["pytest>=7.4", "ruff>=0.6"]
+
+[project.urls]
+Repository = "https://github.com/EdmundJi/DentEMR-Pano"
+Dataset = "https://doi.org/10.6084/m9.figshare.32219928"
+
+[project.scripts]
+dentemr-validate = "dentemr_pano.validate:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dentemr_pano"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 90
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
