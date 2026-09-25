@@ -4,7 +4,7 @@
     python code/scripts/make_hero_figure.py \
         --dataset dataset/dental_clinical_dataset_v2 --out figure.pdf
 
-Uses patient 0000617342: panoramic radiograph with three highlighted regions
+Uses patient DP592226 (v3 identifier): panoramic radiograph with three highlighted regions
 matching the record's imaging_examination findings, and the released narrative
 fields (Chinese source + English translation, abridged) grouped along the
 clinical reasoning chain. Field names and values are taken verbatim from the
@@ -27,7 +27,7 @@ plt.rcParams["font.sans-serif"] = ["Hiragino Sans GB", "PingFang SC",
                                    "Arial Unicode MS", "Helvetica"]
 plt.rcParams["axes.unicode_minus"] = False
 
-PID = "0000617342"
+PID = "DP592226"  # v3 identifier of the example case
 W, H = 1400, 830
 DARK = "#1a1a1a"
 
@@ -59,15 +59,16 @@ def header(ax, x, y, w, h, colors, title, fs=13):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dataset", type=Path,
-                    default=Path("dataset/dental_clinical_dataset_v2"))
+    ap.add_argument("--zh-dir", type=Path,
+                    default=Path("dataset/dental_clinical_dataset_v3/dental_clinical_dataset_v3_zh"),
+                    help="Chinese source copy of the release")
+    ap.add_argument("--pid", default=PID, help="patient_id of the case to draw")
     ap.add_argument("--out", default="figure.pdf")
     args = ap.parse_args()
+    pid = args.pid
 
-    zh = json.loads((args.dataset / "dental_clinical_dataset_v2_zh" /
-                     "clinical_records" / f"{PID}.json").read_text())
-    img = plt.imread(args.dataset / "dental_clinical_dataset_v2_zh" /
-                     "panoramic_radiographs" / f"{PID}_panorama.png")
+    zh = json.loads((args.zh_dir / "clinical_records" / f"{pid}.json").read_text())
+    img = plt.imread(args.zh_dir / "panoramic_radiographs" / f"{pid}_panorama.png")
 
     fig = plt.figure(figsize=(W / 100, H / 100), dpi=100)
     ax = fig.add_axes([0, 0, 1, 1])
@@ -92,7 +93,7 @@ def main() -> int:
                                (x1 - x0) * sx, (y1 - y0) * sy,
                                fill=False, ec=col, lw=2.2, zorder=5))
     ax.text(px + pw / 2, py - 18,
-            f"{PID}_panorama.png   1722 x 922, 8-bit grayscale",
+            f"{pid}_panorama.png   1722 x 922, 8-bit grayscale",
             ha="center", va="center", fontsize=9, family="monospace", color=DARK)
 
     # structured strip
@@ -101,7 +102,7 @@ def main() -> int:
                                 boxstyle="round,pad=0,rounding_size=6",
                                 fc="#f4f4f4", ec="#999999", lw=1.0, zorder=2))
     ax.text(lx + 30, strip_y + 26,
-            f"patient_id {PID} · age {zh['age']} · sex {zh['sex']} (female)\n"
+            f"patient_id {pid} · age {zh['age']} · sex {zh['sex']} (female)\n"
             f"attending_physician {zh['attending_physician']} · has_image yes",
             ha="left", va="center", fontsize=9.5, color=DARK)
 

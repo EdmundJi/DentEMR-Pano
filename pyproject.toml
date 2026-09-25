@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dentemr-pano"
-version = "2.0.0"
-description = "Validation, cohort statistics, reliability and translation-check code for the DentEMR-Pano dataset"
+version = "3.0.0"
+description = "Validation, descriptor tables, reliability and translation-check code for the DentEMR-Pano dataset"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -34,7 +34,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dicom = ["pydicom>=2.4"]
 dev = ["pytest>=7.4", "ruff>=0.6"]
 
 [project.urls]

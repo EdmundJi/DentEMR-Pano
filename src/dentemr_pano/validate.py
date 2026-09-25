@@ -6,16 +6,17 @@ never disagree with the shipped archive.
 
 Usage::
 
-    python -m dentemr_pano.validate path/to/dental_clinical_dataset_v2_zh \
-        --json analysis/out/audit.json
+    python -m dentemr_pano.validate path/to/dental_clinical_dataset_v3_zh \
+        --json audit.json
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import statistics
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field as dc_field
 from pathlib import Path
 from typing import Any, Iterable
@@ -33,19 +34,42 @@ ICD_ATOM = re.compile(r"[A-Z]\d{2}(\.[0-9xX]+)?$")
 #: source data and are treated as valid delimiters, then reported separately.
 ICD_SPLIT = re.compile(r"[;；,，]")
 
-#: Residual-identifier probes for the de-identification audit. These are
-#: deliberately generic; institution-specific de-identification rules are not
-#: part of this repository (see docs/EXCLUSIONS.md).
+#: Residual-identifier probes for the de-identification audit. They are the
+#: complete verification patterns used for the release; nothing else exists.
+#: ``exact_date`` matches a full year-month-day; ``partial_date`` matches a
+#: month-day without a year or a time of day (Chinese or English form), which
+#: the release policy also reduces to year-month granularity.
 DEID_PROBES: dict[str, re.Pattern[str]] = {
     "exact_date": re.compile(r"\d{4}\s*[-/年]\s*\d{1,2}\s*[-/月]\s*\d{1,2}"),
+    "partial_date": re.compile(
+        r"(?<!\d)\d{1,2}月\d{1,2}日|\d{1,2}[时点]\d{1,2}分"
+        r"|\b(?:January|February|March|April|May|June|July|August|September|"
+        r"October|November|December)\s+\d{1,2}\b|\b\d{1,2}:\d{2}\b"
+    ),
     "cn_id_number": re.compile(r"\b\d{15}(\d{2}[0-9Xx])?\b"),
     "phone_number": re.compile(r"\b1[3-9]\d{9}\b"),
     "unreplaced_placeholder": re.compile(r"\[(EMPLOYER|RELATIVE|LOCATION)\]"),
 }
 
-#: Markers showing that a ``procedure`` value is a raw HIS billing order list
-#: rather than a clinical procedure narrative.
+#: Markers of HIS billing-order formatting (administration frequency, drug
+#: packaging) inside ``procedure``. The field *is* the transcribed order list,
+#: so these are counted for documentation, not flagged as contamination.
 ORDER_LIST_MARKERS = re.compile(r"每[天日]\d+次|\(集\)|\[\s*\d+\s*ml[::]")
+
+#: Sex labels per language copy.
+SEX_LABELS: dict[str, set[str]] = {"zh": {"男", "女"}, "en": {"male", "female"}}
+
+
+def detect_language(records: list[dict[str, Any]]) -> str:
+    """``"en"`` when the records carry ``*_en`` narrative fields, else ``"zh"``."""
+    if records and any(str(k).endswith("_en") for k in records[0]):
+        return "en"
+    return "zh"
+
+
+def field_name(f, lang: str) -> str:
+    """Released key of schema field *f* in the given language copy."""
+    return f"{f.name}_en" if (lang == "en" and f.translatable) else f.name
 
 
 # ── Result container ─────────────────────────────────────────────────────────
@@ -131,24 +155,27 @@ def audit(root: Path, records: Iterable[dict[str, Any]] | None = None) -> Audit:
     """Run all checks against the dataset rooted at *root*."""
     recs = list(records) if records is not None else load_records(root)
     res = Audit(n_records=len(recs))
+    lang = detect_language(recs)
+    res.stats["language"] = lang
 
     image_dir = root / "panoramic_radiographs"
     on_disk = {p.name for p in image_dir.glob("*.png")} if image_dir.is_dir() else set()
     res.n_images_on_disk = len(on_disk)
 
-    _check_keys(recs, res)
+    _check_keys(recs, res, lang)
     _check_pairing(recs, on_disk, image_dir.is_dir(), res)
-    _check_completeness(recs, res)
+    _check_image_duplicates(recs, image_dir, res)
+    _check_completeness(recs, res, lang)
     _check_icd(recs, res)
-    _check_demographics(recs, res)
+    _check_demographics(recs, res, lang)
     _check_physicians(recs, res)
-    _check_deidentification(recs, res)
-    _check_order_list_leakage(recs, res)
+    _check_deidentification(recs, res, lang)
+    _check_order_list_markers(recs, res, lang)
     return res
 
 
-def _check_keys(recs, res: Audit) -> None:
-    expected = {f.name for f in FIELDS}
+def _check_keys(recs, res: Audit, lang: str = "zh") -> None:
+    expected = {field_name(f, lang) for f in FIELDS}
     seen: Counter[str] = Counter()
     for r in recs:
         seen.update(r.keys())
@@ -203,24 +230,45 @@ def _check_pairing(recs, on_disk: set[str], have_dir: bool, res: Audit) -> None:
     )
 
 
-def _check_completeness(recs, res: Audit) -> None:
+def _check_image_duplicates(recs, image_dir: Path, res: Audit) -> None:
+    """Flag byte-identical radiographs linked to more than one record.
+
+    A panoramic radiograph belongs to exactly one patient, so identical image
+    content under two different ``patient_id`` values means at least one of
+    the two records is paired with the wrong image. This check is what found
+    the seven cross-record duplicates repaired in release v3.
+    """
+    if not image_dir.is_dir():
+        return
+    by_hash: dict[str, list[str]] = defaultdict(list)
+    for p in sorted(image_dir.glob("*.png")):
+        by_hash[hashlib.md5(p.read_bytes()).hexdigest()].append(p.name)
+    groups = [sorted(v) for v in by_hash.values() if len(v) > 1]
+    for g in groups:
+        res.errors.append(f"pairing: identical image content shared by {g}")
+    res.stats["n_unique_image_contents"] = len(by_hash)
+    res.stats["duplicate_image_groups"] = groups
+
+
+def _check_completeness(recs, res: Audit, lang: str = "zh") -> None:
     """Report emptiness per field, split by declared requirement level."""
     per_field: dict[str, int] = {}
     incomplete: set[str] = set()
 
     for f in FIELDS:
-        blanks = [r["patient_id"] for r in recs if _blank(r.get(f.name))]
-        per_field[f.name] = len(blanks)
+        key = field_name(f, lang)
+        blanks = [r["patient_id"] for r in recs if _blank(r.get(key))]
+        per_field[key] = len(blanks)
         if not blanks:
             continue
         if f.requirement == "required":
             res.errors.append(
-                f"completeness: required field {f.name} empty in {len(blanks)} records"
+                f"completeness: required field {key} empty in {len(blanks)} records"
             )
         elif f.requirement == "expected":
             incomplete.update(blanks)
             res.warnings.append(
-                f"completeness: expected field {f.name} empty in {len(blanks)} records"
+                f"completeness: expected field {key} empty in {len(blanks)} records"
             )
 
     res.stats["empty_per_field"] = per_field
@@ -269,7 +317,7 @@ def _check_icd(recs, res: Audit) -> None:
     )
 
 
-def _check_demographics(recs, res: Audit) -> None:
+def _check_demographics(recs, res: Audit, lang: str = "zh") -> None:
     ages: list[int] = []
     for r in recs:
         try:
@@ -286,9 +334,10 @@ def _check_demographics(recs, res: Audit) -> None:
         )
 
     sexes = Counter(r.get("sex") for r in recs)
-    unknown = set(sexes) - {"男", "女"}
+    unknown = set(sexes) - SEX_LABELS[lang]
     if unknown:
         res.errors.append(f"demographics: unexpected sex values {sorted(unknown)}")
+    male, female = ("男", "女") if lang == "zh" else ("male", "female")
 
     res.stats["age"] = {
         "min": min(ages),
@@ -302,9 +351,9 @@ def _check_demographics(recs, res: Audit) -> None:
         "pct_ge_50": round(100 * sum(1 for a in ages if a >= 50) / len(ages), 1),
     }
     res.stats["sex"] = {
-        "male": sexes.get("男", 0),
-        "female": sexes.get("女", 0),
-        "pct_female": round(100 * sexes.get("女", 0) / len(recs), 1),
+        "male": sexes.get(male, 0),
+        "female": sexes.get(female, 0),
+        "pct_female": round(100 * sexes.get(female, 0) / len(recs), 1),
     }
 
 
@@ -316,10 +365,16 @@ def _check_physicians(recs, res: Audit) -> None:
     res.stats["cases_per_physician"] = {p: counts.get(p, 0) for p in PHYSICIANS}
 
 
-def _check_deidentification(recs, res: Audit) -> None:
-    """Scan every free-text field for residual identifiers."""
+def _check_deidentification(recs, res: Audit, lang: str = "zh") -> None:
+    """Scan every free-text field for residual identifiers.
+
+    The probes are the generic patterns used for the release audit (exact
+    dates, national ID numbers, mobile numbers, unreplaced placeholders); the
+    per-probe hit counts are reported in ``stats["deid_hits"]`` so a full
+    corpus scan can be quoted verbatim.
+    """
     hits: dict[str, list[str]] = {k: [] for k in DEID_PROBES}
-    text_fields = [f.name for f in FIELDS if f.kind == "string"]
+    text_fields = [field_name(f, lang) for f in FIELDS if f.kind == "string"]
 
     for r in recs:
         for fname in text_fields:
@@ -340,24 +395,23 @@ def _check_deidentification(recs, res: Audit) -> None:
     res.stats["deid_hits"] = {k: len(v) for k, v in hits.items()}
 
 
-def _check_order_list_leakage(recs, res: Audit) -> None:
-    """Quantify raw HIS order-list content inside ``procedure``.
+def _check_order_list_markers(recs, res: Audit, lang: str = "zh") -> None:
+    """Count records whose ``procedure`` carries HIS order-list formatting.
 
-    The submitted Methods claimed billing order items were excluded from the
-    procedure field. They were not, so the revision must either strip them or
-    correct the claim; this check supplies the number either way.
+    ``procedure`` is the transcribed HIS order list (examinations, procedures
+    and drugs as ordered), so administration-frequency and packaging strings
+    are expected there. The count documents how many records carry them; it
+    is not an error. The markers are Chinese, so the count is only computed
+    on the Chinese source copy.
     """
-    contaminated = [
+    if lang != "zh":
+        return
+    with_markers = [
         r["patient_id"]
         for r in recs
         if ORDER_LIST_MARKERS.search(str(r.get("procedure") or ""))
     ]
-    if contaminated:
-        res.warnings.append(
-            f"provenance: {len(contaminated)} procedure values contain raw HIS "
-            "order-list markers (billing frequency, drug packaging)"
-        )
-    res.stats["n_order_list_in_procedure"] = len(contaminated)
+    res.stats["n_order_list_markers_in_procedure"] = len(with_markers)
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────

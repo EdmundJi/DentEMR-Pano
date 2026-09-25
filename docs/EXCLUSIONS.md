@@ -2,74 +2,74 @@
 
 The editor's request was to publish "a copy of the full code … excluding the
 elements that relate to the EMR". This document draws that line explicitly, so
-that a reader can tell the difference between code that is absent because it is
-sensitive and code that is absent because it was never part of the public
-release.
+that a reader can tell the difference between code that is absent because it
+was never written and code that is absent because it is sensitive.
 
-## Withheld deliberately
+## The one private input: the identifier map
 
-### 1. De-identification pattern library
+Release v3 replaced every `patient_id` (and image file name) by a random
+study identifier, because the identifiers used during collection had been
+assigned at the hospital workstation and could not be shown to be unrelated
+to hospital numbering. `scripts/build_v3.py` reads the collection-to-release
+identifier map from `--id-map`; that file is held by the principal
+investigator and is not published, so a rebuild without it yields a release
+with different (equally valid) random identifiers.
 
-The regular expressions and replacement rules used to detect and remove direct
-identifiers (names, national identity numbers, insurance and medical record
-numbers, telephone numbers) and indirect identifiers (employer names, kinship
-terms, residential districts) are withheld.
+## Nothing else is withheld
 
-A de-identification rule set is a map of what the scrubber looks for. Anyone
-holding both the rule set and a de-identified corpus can enumerate what the
-scrubber would *not* have caught, which is a re-identification aid rather than a
-reproducibility aid.
-
-What is published instead is the **verification** side: `validate.py` ships a
-generic residual-identifier scanner that any user can run against the released
-archive to confirm the de-identification held. Finding the leaks is the part
-that belongs in public; the institutional pattern library is not.
+An earlier version of this file said that a "de-identification pattern
+library" was withheld. That was inaccurate and has been removed. No such
+library exists: identifiers were kept out of the dataset at transcription
+time (the field template has no slot for names, identity numbers, contact
+details or addresses, and the transcribers did not copy them from the
+narrative); dates written by physicians into the narratives were reduced to
+year-month granularity during release preparation; and the result was
+checked by manual review and by the generic residual-identifier probes in
+`validate.py`. Those probes are the complete verification code and are
+published here. `residual_identifier_scan.json` inside each release copy is
+the output of running them over the whole corpus.
 
 ## Outside the repository boundary
 
-The repository does not contain hospital-side export or retrieval code (HIS
-record export, PACS/DICOM retrieval), because those components belong to the
-clinical source systems and are not part of the public release. Structured
-field extraction was performed manually by trained research assistants
-following the protocol described in the paper's Methods; being manual, there
-is no extraction pipeline to publish.
-
-The modules here are therefore a **reference implementation**: they encode the
-same schema, the same rubric and the same statistics as the published dataset,
-and they reproduce its numbers, but they are not a recovered copy of the
-hospital workflow, because that workflow is outside the repository boundary.
-
-Specifically:
+The dataset was assembled by hand, so there is no extraction pipeline to
+publish:
 
 | Stage | Status |
 |---|---|
-| Hospital-side export and retrieval (HIS, PACS/DICOM) | not included; belongs to the clinical source systems |
-| Field segmentation and structured extraction | manual, per the Methods protocol; no pipeline existed to publish |
-| Schema definition | reimplemented (`schema.py`) |
-| Dataset validation and QC | newly written (`validate.py`) |
-| Image de-identification masking and release packaging | encoded in the release-assembly scripts (`scripts/build_v2.py`, `scripts/split_language_copies.py`) |
-| English translation pipeline and checks | included (`translate.py`, `segments.py`, `scripts/run_translation_pipeline.py`) |
-| Cohort statistics and figures | reimplemented (`cohort.py`, `figures.py`) |
-| Inter-rater reliability | reimplemented (`reliability.py`, `ratings.py`) |
+| Retrieval of the record page (HIS workstation) and of the radiograph (PACS viewer window capture) | manual, per the collection guide summarised in the paper's Methods; no code |
+| Transcription (double entry by trained undergraduates) and reconciliation (two dental-student authors) | manual; no code, and the per-cell correction history was not logged |
+| Assignment of `chief_complaint_category`, `primary_diagnosis_icd`, `treatment_category` | manual, by the two reconciling authors under a shared written rule; no code |
+| Schema definition | `schema.py` |
+| Dataset validation, residual-identifier scan, duplicate-image check | `validate.py` |
+| Radiograph label masking, grayscale conversion, release assembly | `scripts/build_v2.py`, `scripts/split_language_copies.py` |
+| v3 linkage repair and archive assembly | `scripts/build_v3.py` |
+| English translation pipeline and checks | `translate.py`, `segments.py`, `pipeline.py`, `scripts/run_translation_pipeline.py` |
+| Cohort tables for the descriptor | `scripts/make_descriptor_tables.py` |
+| Inter-rater reliability with confidence intervals | `reliability.py`, `ratings.py`, `scripts/run_reliability.py` |
+| Figures 1 and 2 | `scripts/make_workflow_figure.py`, `scripts/make_hero_figure.py` |
 
-This distinction is stated plainly in the README and in the manuscript's Code
-Availability section. Presenting the repository as the hospital workflow
-itself would be a misrepresentation, and the difference is checkable by anyone
-who compares the public code against the release package.
+The modules here are therefore a **reference implementation** of the
+schema, the rubric and the statistics. They reproduce every number quoted in
+the Data Records and Technical Validation sections from the released archive
+(plus the rater score table for the reliability analysis). They are not, and
+do not claim to be, a recovered copy of a hospital pipeline, because the
+dataset was not built by one.
 
 ## What a reader can actually reproduce
 
-Given the released archives from Figshare and, for the reliability analysis,
-the rater score table:
+Given the released archives from Figshare (the rater score table ships inside
+each archive as `quality_scores.csv`):
 
-- every structural, completeness and de-identification check reported about the
-  dataset;
-- every cohort statistic and all three characteristics figures;
-- every inter-rater reliability coefficient, including the ICC values in the
-  original submission and the Gwet's AC1/AC2 and PABAK values added in revision;
-- the deterministic translation consistency checks described in Methods.
+- every structural, completeness, de-identification and duplicate-image check
+  reported about the dataset;
+- the per-field completeness table, the ICD-10 code table and the
+  per-physician documentation measures;
+- every inter-rater reliability coefficient with its confidence interval,
+  including the zero-filled values of the original submission (re-introduce
+  the zero fill to reproduce them);
+- the deterministic translation consistency checks described in Methods;
+- the v3 archives from the v2 archives.
 
-That covers all quantitative claims in the Data Records and Technical Validation
-sections. It does not cover the construction of the archive, which was manual
-and required access to the hospital's systems — and which, being manual, is
+That covers all quantitative claims in the descriptor. It does not cover the
+construction of the archive from the hospital systems, which was manual and is
 described in the Methods rather than shipped as code.

@@ -108,6 +108,11 @@ class IccResult:
     n_raters: int
     degenerate: bool
     note: str = ""
+    icc_2_1_ci_low: float | None = None
+    icc_2_1_ci_high: float | None = None
+    icc_2_k_ci_low: float | None = None
+    icc_2_k_ci_high: float | None = None
+    conf_level: float = 0.95
 
     def as_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -234,18 +239,24 @@ def pabak(ratings: np.ndarray, categories: Sequence[int]) -> Coefficient:
 # ── ICC ──────────────────────────────────────────────────────────────────────
 
 
-def icc_two_way(ratings: np.ndarray) -> IccResult:
+def icc_two_way(ratings: np.ndarray, conf_level: float = 0.95) -> IccResult:
     """ICC(2,1) and ICC(2,k): two-way random effects, absolute agreement.
 
     Args:
         ratings: ``(n_subjects, n_raters)`` complete score matrix.
+        conf_level: Two-sided confidence level for the intervals.
 
     Returns:
-        Both single- and average-measure estimates. ``ICC(2,k)`` is reported
-        twice: from the McGraw & Wong mean-squares form, and by Spearman-Brown
-        extrapolation from ICC(2,1). The two are algebraically identical for
-        this model -- see ``tests/test_reliability.py`` for the derivation --
-        so the pair doubles as a self-check on the mean-squares arithmetic.
+        Both single- and average-measure estimates with confidence intervals.
+        ``ICC(2,k)`` is reported twice: from the McGraw & Wong mean-squares
+        form, and by Spearman-Brown extrapolation from ICC(2,1). The two are
+        algebraically identical for this model -- see
+        ``tests/test_reliability.py`` for the derivation -- so the pair
+        doubles as a self-check on the mean-squares arithmetic.
+
+        The interval for ICC(2,1) is the exact F-based interval of McGraw &
+        Wong (1996, Table 7, case ICC(A,1)); the ICC(2,k) interval is its
+        Spearman-Brown transform, as in Shrout & Fleiss (1979).
     """
     x = np.asarray(ratings, dtype=float)
     if x.ndim != 2:
@@ -281,6 +292,11 @@ def icc_two_way(ratings: np.ndarray) -> IccResult:
     icck = (ms_rows - ms_err) / denom_k if denom_k != 0 else float("nan")
     sb = (k * icc1) / (1.0 + (k - 1) * icc1) if icc1 > -1 / (k - 1) else float("nan")
 
+    lo1, hi1 = _icc_a1_interval(icc1, ms_rows, ms_cols, ms_err, n, k, conf_level)
+
+    def _sb(v: float) -> float:
+        return (k * v) / (1.0 + (k - 1) * v) if v > -1 / (k - 1) else float("nan")
+
     return IccResult(
         icc_2_1=float(icc1),
         icc_2_k=float(icck),
@@ -288,7 +304,45 @@ def icc_two_way(ratings: np.ndarray) -> IccResult:
         n_subjects=n,
         n_raters=k,
         degenerate=False,
+        icc_2_1_ci_low=lo1,
+        icc_2_1_ci_high=hi1,
+        icc_2_k_ci_low=_sb(lo1),
+        icc_2_k_ci_high=_sb(hi1),
+        conf_level=conf_level,
     )
+
+
+def _icc_a1_interval(
+    icc: float, ms_rows: float, ms_cols: float, ms_err: float,
+    n: int, k: int, conf_level: float,
+) -> tuple[float, float]:
+    """Exact confidence interval for ICC(A,1) (McGraw & Wong 1996, Table 7).
+
+    The bounds use two F quantiles with Satterthwaite degrees of freedom ``v``
+    that depend on the point estimate. The interval is clipped to ``[-1, 1]``.
+    """
+    from scipy.stats import f as f_dist
+
+    if not math.isfinite(icc):
+        return float("nan"), float("nan")
+    alpha = 1.0 - conf_level
+    one_minus = 1.0 - icc
+    if one_minus == 0:
+        return float("nan"), float("nan")
+    a = k * icc / (n * one_minus)
+    b = 1.0 + k * icc * (n - 1) / (n * one_minus)
+    num = (a * ms_cols + b * ms_err) ** 2
+    den = (a * ms_cols) ** 2 / (k - 1) + (b * ms_err) ** 2 / ((n - 1) * (k - 1))
+    v = num / den if den > 0 else float("nan")
+    if not math.isfinite(v) or v <= 0:
+        return float("nan"), float("nan")
+    f_low = f_dist.ppf(1 - alpha / 2, n - 1, v)
+    f_high = f_dist.ppf(1 - alpha / 2, v, n - 1)
+    lower = (n * (ms_rows - f_low * ms_err)
+             / (f_low * (k * ms_cols + (k * n - k - n) * ms_err) + n * ms_rows))
+    upper = (n * (f_high * ms_rows - ms_err)
+             / (k * ms_cols + (k * n - k - n) * ms_err + n * f_high * ms_rows))
+    return float(max(-1.0, lower)), float(min(1.0, upper))
 
 
 # ── Exact agreement ──────────────────────────────────────────────────────────

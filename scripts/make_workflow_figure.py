@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Draw Figure 1 (dataset construction workflow) in the style of the original
 hand-drawn diagram: five pastel panels with dashed borders and colored arrows,
-but with content that matches the released v2 archives (8-bit PNG, split zh/en
-release, real 17-field schema).
+with content that matches the actual collection process (record screen
+photographs and PACS viewer window captures, double manual transcription,
+reconciliation by two dental-student authors) and the released v3 archives
+(8-bit PNG, split zh/en release, real 17-field schema, 443 radiographs).
 
     python code/scripts/make_workflow_figure.py --out submission_package/figure1.png
 """
@@ -156,44 +158,48 @@ def main() -> int:
 
     # ── Panel 1: collection ──────────────────────────────────────────────
     p1x, p1w = 10, 442
-    panel(ax, p1x, top_y, p1w, top_h, PINK, "1. Data Collection &\nEMR Export",
+    panel(ax, p1x, top_y, p1w, top_h, PINK, "1. Data Collection\n(HIS workstation & PACS viewer)",
           title_h=78)
     database(ax, p1x + 100, top_y + 205)
-    ax.text(p1x + 100, top_y + 178, "HIS - Hospital\nInformation System",
+    ax.text(p1x + 100, top_y + 178, "HIS outpatient\nrecord page",
             ha="center", va="top", fontsize=10.5, fontweight="bold", color=DARK)
     small_arrow(ax, (p1x + 172, top_y + 228), (p1x + 228, top_y + 228), PINK["edge"])
-    ax.text(p1x + 322, top_y + 228, "Semi-structured\nEMR files", ha="center",
+    ax.text(p1x + 322, top_y + 228, "Photograph of the\non-screen record", ha="center",
             va="center", fontsize=11.5, color=DARK)
     xray_machine(ax, p1x + 100, top_y + 52)
-    ax.text(p1x + 100, top_y + 40, "PACS - Panoramic\nRadiographs", ha="center",
+    ax.text(p1x + 100, top_y + 40, "PACS viewer\n(panoramic entry)", ha="center",
             va="top", fontsize=10.5, fontweight="bold", color=DARK)
     small_arrow(ax, (p1x + 172, top_y + 90), (p1x + 228, top_y + 90), PINK["edge"])
-    ax.text(p1x + 322, top_y + 90, "DICOM files", ha="center", va="center",
-            fontsize=11.5, color=DARK)
+    ax.text(p1x + 322, top_y + 90, "Window capture\n8-bit BMP, 1722 x 922\n(no DICOM export)",
+            ha="center", va="center", fontsize=11, color=DARK)
 
     # ── Panel 2: preprocessing ───────────────────────────────────────────
     p2x, p2w = 492, 442
-    panel(ax, p2x, top_y, p2w, top_h, BLUE, "2. Data Preprocessing &\nDe-identification",
+    panel(ax, p2x, top_y, p2w, top_h, BLUE, "2. Transcription, Reconciliation\n& Image Preparation",
           title_h=78)
-    document(ax, p2x + 70, top_y + 205)
-    small_arrow(ax, (p2x + 118, top_y + 205), (p2x + 178, top_y + 205), BLUE["edge"])
-    ax.text(p2x + 300, top_y + 205, "Cleaned EMR texts\n(UTF-8, template noise\nremoved)",
-            ha="center", va="center", fontsize=11, color=DARK)
-    ax.text(p2x + 70, top_y + 158, "Record cleaning", ha="center", va="top",
+    document(ax, p2x + 52, top_y + 212)
+    document(ax, p2x + 96, top_y + 200)
+    small_arrow(ax, (p2x + 134, top_y + 205), (p2x + 178, top_y + 205), BLUE["edge"])
+    ax.text(p2x + 300, top_y + 205,
+            "Two independent typed copies\nper record (20 trained\nundergraduates, no OCR)",
+            ha="center", va="center", fontsize=10.5, color=DARK)
+    ax.text(p2x + 74, top_y + 158, "Field template", ha="center", va="top",
             fontsize=10.5, fontweight="bold", color=DARK)
     pano_film(ax, p2x + 70, top_y + 75)
     small_arrow(ax, (p2x + 128, top_y + 75), (p2x + 188, top_y + 75), BLUE["edge"])
     pano_film(ax, p2x + 248, top_y + 75, masked=True)
-    ax.text(p2x + 366, top_y + 75, "De-identified\n8-bit PNG", ha="center",
+    ax.text(p2x + 366, top_y + 75, "Label masked,\ngrayscale PNG", ha="center",
             va="center", fontsize=11, color=DARK)
-    ax.text(p2x + 160, top_y + 22, "DICOM header stripping & overlay masking",
-            ha="center", va="center", fontsize=10.5, fontweight="bold", color=DARK)
+    ax.text(p2x + p2w / 2, top_y + 24,
+            "Copies reconciled against the photographed record\nby 2 dental-student authors",
+            ha="center", va="center", fontsize=9.6, fontweight="bold", color=DARK)
 
     # ── Panel 3: filtering ───────────────────────────────────────────────
     p3x, p3w = 976, 404
-    panel(ax, p3x, top_y, p3w, top_h, GREEN, "3. Data Filtering", title_h=64)
-    crits = ["(1) Incomplete records", "(2) Duplicates", "(3) Abnormal documents",
-             "(4) De-identification errors", "(5) Poor image quality"]
+    panel(ax, p3x, top_y, p3w, top_h, GREEN, "3. Verification & Filtering", title_h=64)
+    crits = ["525 encounter rows, 5 physicians", "18 patients excluded on review",
+             "2 duplicate rows removed", "1 record per patient (visit with\nthe panoramic radiograph)",
+             "6 without a retrievable radiograph"]
     pill_w, pill_h, gap = 300, 40, 9
     py0 = top_y + top_h - 64 - 24
     for i, c in enumerate(crits):
@@ -202,22 +208,23 @@ def main() -> int:
                                     boxstyle="round,pad=0,rounding_size=10",
                                     fc="#dff0d7", ec=GREEN["edge"], lw=1.6, zorder=4))
         ax.text(p3x + 26 + pill_w / 2, y + pill_h / 2, c, ha="center", va="center",
-                fontsize=12, fontweight="bold", color=DARK, zorder=5)
+                fontsize=10.5 if "\n" in c else 11.5, fontweight="bold", color=DARK, zorder=5)
         if i < len(crits) - 1:
             small_arrow(ax, (p3x + 26 + pill_w + 18, y + pill_h / 2),
                         (p3x + 26 + pill_w + 18, y - gap + 2), GREEN["edge"])
     ax.text(p3x + 26 + pill_w / 2, top_y + 22,
-            "525 collected  →  463 released", ha="center", va="center",
+            "525 rows  →  505 encounters  →  463 records", ha="center", va="center",
             fontsize=11.5, fontweight="bold", color="#4a7a38")
 
     # ── Panel 4: extraction ──────────────────────────────────────────────
     p4x, p4w = 800, 580
-    panel(ax, p4x, bot_y, p4w, bot_h, PURPLE, "4. Structured Field Extraction",
+    panel(ax, p4x, bot_y, p4w, bot_h, PURPLE, "4. Structured Fields (17 per record)",
           title_h=56)
     gear(ax, p4x + 96, bot_y + 170, r=24)
     gear(ax, p4x + 138, bot_y + 128, r=17)
-    ax.text(p4x + 116, bot_y + 84, "Manual extraction\n(2 research assistants,\nprotocol in Methods)",
-            ha="center", va="center", fontsize=10.5, color=DARK)
+    ax.text(p4x + 116, bot_y + 78,
+            "Narratives typed verbatim\nby transcribers; categories\nand ICD-10 (category level)\nassigned by the 2 authors",
+            ha="center", va="center", fontsize=9.6, color=DARK)
     tx, tw = p4x + 236, 322
     rows = [("chief_complaint", "text"), ("history_of_present_illness", "text"),
             ("oral_examination", "text"), ("imaging_examination", "text"),
@@ -248,7 +255,7 @@ def main() -> int:
     # ── Panel 5: pairing & organization ─────────────────────────────────
     p5x, p5w = 10, 700
     panel(ax, p5x, bot_y, p5w, bot_h, YELLOW,
-          "5. Image-Text Pairing & Dataset Organization", title_h=56)
+          "5. Pairing Checks & Release (v3)", title_h=56)
 
     def copy_tree(x0, y0, name, extra):
         folder(ax, x0, y0 + 210)
@@ -264,19 +271,20 @@ def main() -> int:
         ax.text(x0 + 62, y0 + 118, "panoramic_radiographs/", ha="left", va="center",
                 fontsize=9, family="monospace", color=DARK)
         badge(ax, x0 + 256, y0 + 118, "PNG", "#b8dba8")
-        ax.text(x0 + 286, y0 + 118, "457", ha="left", va="center", fontsize=9.5,
+        ax.text(x0 + 286, y0 + 118, "443", ha="left", va="center", fontsize=9.5,
                 color=DARK)
-        ax.text(x0 + 22, y0 + 84, "metadata.csv · README.md", ha="left",
-                va="center", fontsize=9.5, family="monospace", color=DARK)
-        ax.text(x0 + 22, y0 + 62, extra, ha="left", va="center", fontsize=9.5,
-                family="monospace", color=DARK)
+        ax.text(x0 + 22, y0 + 94, "metadata.csv · README.md\n" + extra, ha="left",
+                va="top", fontsize=9.0, family="monospace", color=DARK,
+                linespacing=1.35)
 
-    copy_tree(p5x + 24, bot_y, "..._v2_zh/  (Chinese source)", "CHANGELOG.md")
-    copy_tree(p5x + 366, bot_y, "..._v2_en/  (English, *_en)",
-              "translation_screening_log.json")
-    chain(ax, p5x + 350, bot_y + 34)
-    ax.text(p5x + 350, bot_y + 12, "aligned by patient_id", ha="center",
-            va="center", fontsize=10, fontweight="bold", color=DARK)
+    copy_tree(p5x + 24, bot_y, "..._v3_zh/  (Chinese source)",
+              "CHANGELOG.md · build_report.json\nresidual_identifier_scan.json")
+    copy_tree(p5x + 366, bot_y, "..._v3_en/  (English, *_en)",
+              "CHANGELOG.md · build_report.json\nresidual_identifier_scan.json\ntranslation_screening_log.json")
+    chain(ax, p5x + 350, bot_y + 40)
+    ax.text(p5x + 350, bot_y + 10,
+            "aligned by patient_id · duplicate-image check: 14 records unlinked",
+            ha="center", va="center", fontsize=9.5, fontweight="bold", color=DARK)
 
     # ── Inter-panel arrows ───────────────────────────────────────────────
     arrow(ax, (p1x + p1w + 2, top_y + 180), (p2x - 2, top_y + 180), PINK["edge"])

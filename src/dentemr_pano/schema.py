@@ -1,10 +1,8 @@
 """Canonical schema for the DentEMR-Pano clinical records.
 
 This module is the single source of truth for the released record structure:
-the manuscript's schema table lists exactly the fields in :data:`FIELDS`, so
-the paper and the data cannot drift apart again -- the v1 release and the
-originally submitted schema table disagreed on five field names and on two
-fields that were described but never shipped.
+the manuscript's schema table lists exactly the fields in :data:`FIELDS`, with
+the same requirement levels, so the paper and the data cannot drift apart.
 """
 
 from __future__ import annotations
@@ -47,11 +45,12 @@ class Field:
 
 #: Fields in released order. Names match ``clinical_records/*.json`` exactly.
 FIELDS: tuple[Field, ...] = (
-    Field("patient_id", "PACS/HIS linkage", "string", "required", "none",
-          "De-identified case identifier; primary key."),
+    Field("patient_id", "assigned for release", "string", "required", "none",
+          "Random study identifier (DP + six digits, assigned for v3); primary key. "
+          "Not a hospital number."),
     Field("image_file", "PACS linkage", "filename", "optional", "none",
           "Paired panoramic radiograph filename; empty when no image exists."),
-    Field("has_image", "derived", "enum", "required", "none",
+    Field("has_image", "release linkage", "enum", "required", "none",
           "'yes' when a paired radiograph is released, otherwise 'no'."),
     Field("age", "HIS demographics", "integer", "required", "none",
           "Patient age in years at the visit (18-90)."),
@@ -61,7 +60,7 @@ FIELDS: tuple[Field, ...] = (
           "Anonymised contributing physician code, P1-P5."),
     Field("chief_complaint", "【主诉】", "string", "expected", "zh",
           "Presenting symptom and duration in the patient's own words."),
-    Field("chief_complaint_category", "derived", "enum", "expected", "en",
+    Field("chief_complaint_category", "assigned", "enum", "expected", "en",
           "Coarse English category of the chief complaint; not a translation."),
     Field("history_of_present_illness", "【现病史】", "string", "expected", "zh",
           "Onset, triggers and progression narrative."),
@@ -73,12 +72,13 @@ FIELDS: tuple[Field, ...] = (
           "Primary clinical diagnosis text."),
     Field("primary_diagnosis_icd", "【诊断】", "code", "required", "code",
           "Semicolon-separated ICD-10 codes for the recorded diagnoses."),
-    Field("treatment_category", "derived", "enum", "optional", "en",
-          "Standardised English treatment category, semicolon-separated."),
+    Field("treatment_category", "assigned", "enum", "expected", "en",
+          "Controlled English treatment categories, semicolon-separated."),
     Field("treatment_plan", "【治疗计划/处理】", "string", "expected", "zh",
           "Planned treatment strategy and consented option."),
     Field("procedure", "HIS order list", "string", "expected", "zh",
-          "Billing-linked order list of examinations, procedures and drugs."),
+          "Billing-linked order list of examinations, procedures and drugs, "
+          "transcribed verbatim."),
     Field("physician_advice", "【医嘱】", "string", "expected", "zh",
           "Follow-up instructions and patient education."),
 )
@@ -102,23 +102,3 @@ DROPPED_IN_V2: dict[str, str] = {
 
 #: Physician case counts in the v1 release, used to check stratification.
 PHYSICIANS: tuple[str, ...] = ("P1", "P2", "P3", "P4", "P5")
-
-#: Fields the submitted manuscript's Table 4 described but which the release
-#: does not contain. Recorded here so the revision can resolve each explicitly.
-DESCRIBED_BUT_ABSENT: dict[str, str] = {
-    "past_medical_history": "Table 4 lists 【既往史/过敏史】 as an optional field; "
-                            "no such key exists in any released record.",
-    "secondary_diagnoses": "Table 4 and a dedicated Methods paragraph describe "
-                           "expert-reviewed secondary diagnoses; the release "
-                           "encodes additional diagnoses only as extra ICD "
-                           "codes inside primary_diagnosis_icd.",
-}
-
-#: Manuscript field names that were renamed in the release, old -> new.
-RENAMED_SINCE_SUBMISSION: dict[str, str] = {
-    "present_illness": "history_of_present_illness",
-    "imaging_description": "imaging_examination",
-    "recommendations": "physician_advice",
-    "radiograph_filename": "image_file",
-    "procedures_performed": "procedure",
-}
